@@ -6,7 +6,9 @@ DeepSeek Harness（DSH）插件：把 DSH Web GUI 安全地开放到外网。
 - **cookie 配对**：每个外网浏览器第一次访问会拿到 `dsh_ra` cookie，但只能看到等待页。
 - **5 分钟有效期**：未确认的 cookie 5 分钟后自动失效；重新访问会得到新的配对码。
 - **持久化**：已确认会话写入 `$DSH_HOME/remote-access/sessions.json`（0600），重启 DSH 后不用重新配对。
-- **定期全部清理**：默认每 7 天把所有已确认会话一起作废，强制重新配对（可配置）。
+- **到期清理**：每个 cookie 默认 30 天后到期，只清理到期的会话，不做全局重置。
+- **只允许域名**：配置 `publicHost` 后，用 IP 或其他域名访问一律返回 421。
+- **IPv6 双栈**：默认监听 `::`，域名有 AAAA 记录时 IPv6 公网可直连。
 - **只能内网确认**：确认/拒绝操作只接受局域网或本机来源；外网（经代理）打开设置页时只有只读提示，没有确认按钮，Host 也会拒绝。
 - **设置页确认**：DSH「设置 → 外网访问」里核对配对码并确认，之后该浏览器才被转发到真正的 DSH 页面。
 
@@ -97,15 +99,14 @@ chmod 600 ~/.dsh/remote-access/tls/privkey.pem
 
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
-| `listenHost` | `0.0.0.0` | 公网监听地址 |
+| `listenHost` | `::` | 公网监听地址；`::` 同时接受 IPv4 与 IPv6 |
+| `publicHost` | — | 只允许该域名访问，并用于展示公网地址；未配置则不限制 |
 | `listenPort` | `8443` | 公网 TLS 端口 |
 | `tlsCertFile` / `tlsKeyFile` | — | PEM 证书链与私钥；不填则自动生成自签证书 |
 | `certNames` | `[]` | 自签证书额外 SAN，例如 `["dsh.example.com"]` |
 | `pendingTtlMs` | `300000`（5 分钟） | 未确认 cookie 有效期 |
-| `sessionTtlMs` | `2592000000`（30 天） | 单个已确认 cookie 有效期 |
-| `clearAllIntervalMs` | `604800000`（7 天） | 定期把全部已确认会话作废；`0` 关闭 |
+| `sessionTtlMs` | `2592000000`（30 天） | 单个已确认 cookie 有效期；到期自动清理 |
 | `statePath` | `$DSH_HOME/remote-access/sessions.json` | 持久化文件路径 |
-| `publicHost` | — | 对外域名，用于设置页展示公网地址（TLS 以证书 SAN 为准） |
 
 ## 安全边界
 
@@ -115,8 +116,10 @@ chmod 600 ~/.dsh/remote-access/tls/privkey.pem
 - 外网打开设置页时 `status.internal === false`，界面只显示提示，不渲染确认/撤销按钮。
 - 已确认会话持久化到 0600 文件（目录 0700）。这个文件里保存的就是 cookie 值，等同凭证；备份或拷贝它等于拷贝访问权。
 - 未确认会话不落盘：重启后仍需在 5 分钟内重新配对。
-- 定期全清从 `clearedAt` 起算，每 `clearAllIntervalMs` 把**全部**会话（包括刚确认的）一起作废。
-- `dsh_ra` cookie 是 `Secure; HttpOnly; SameSite=Lax; Max-Age=2592000`，只在 TLS 监听上使用；浏览器关闭标签页后仍会保留，直到服务端过期或定期清理。
+- 清理只按每个会话自己的 `expiresAt` 进行（30 天），不会把其他会话一起作废。
+- `dsh_ra` cookie 是 `Secure; HttpOnly; SameSite=Lax; Max-Age=2592000`，只在 TLS 监听上使用；浏览器关闭标签页后仍会保留，直到服务端过期。
+- 配置 `publicHost` 后，代理只接受 Host 等于该域名的请求；IP、`www.` 前缀或缺失 Host 都返回 421。
+- IPv6 需要域名有 AAAA 记录；`https://<IPv6 字面量>:8443` 会被域名限制拒绝，这是刻意行为。
 - 上层 DSH 的 `dsh-auth` cookie 由代理独占，不会出现在外网响应里。
 
 ## 自检
@@ -126,10 +129,12 @@ node lib/self-check.mjs
 ```
 
 覆盖：未确认不转发、确认后转发、Host 重写与标记头、cookie 到期换新、撤销失效、
-WebSocket upgrade 的同一套规则；以及持久化重启恢复、未确认会话不落盘、定期全清。
+WebSocket upgrade 的同一套规则；持久化重启恢复、未确认会话不落盘、到期清理；
+以及配置 `publicHost` 后 IP/其他域名返回 421。
 
 ## 已知限制
 
-- 定期全清是固定周期，不做单设备滑动续期；到期后所有外网浏览器都要重新配对。
+- 会话不做滑动续期：每个 cookie 从确认时刻起固定 30 天，到期后该浏览器要重新配对。
+- IPv6 公网可达还取决于路由器/防火墙放行 8443 以及 AAAA 记录是否正确。
 - 代理不处理 HTTP/2、gzip 再压缩或证书自动续期；DSH 自己的压缩原样透传。
 - 只保护经本插件端口的访问。若直接把 `dsh web` 绑定到公网地址，会绕过这套验证。
