@@ -116,7 +116,7 @@ chmod 600 ~/.dsh/remote-access/tls/privkey.pem
 - 已确认会话持久化到 0600 文件（目录 0700）。这个文件里保存的就是 cookie 值，等同凭证；备份或拷贝它等于拷贝访问权。
 - 未确认会话不落盘：重启后仍需在 5 分钟内重新配对。
 - 定期全清从 `clearedAt` 起算，每 `clearAllIntervalMs` 把**全部**会话（包括刚确认的）一起作废。
-- `dsh_ra` cookie 是 `Secure; HttpOnly; SameSite=Lax`，只在 TLS 监听上使用。
+- `dsh_ra` cookie 是 `Secure; HttpOnly; SameSite=Lax; Max-Age=2592000`，只在 TLS 监听上使用；浏览器关闭标签页后仍会保留，直到服务端过期或定期清理。
 - 上层 DSH 的 `dsh-auth` cookie 由代理独占，不会出现在外网响应里。
 
 ## 自检
