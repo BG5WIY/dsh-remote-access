@@ -67,7 +67,7 @@ ln -s ~/dsh-remote-access ~/.dsh/profiles/web/node_modules/dsh-remote-access
 5. 外网页面 2 秒内自动进入 DSH。之后同一个浏览器在 24 小时内免确认（可配置）。
 6. 换浏览器、清 cookie、撤销会话或重启 DSH 后需要重新配对。
 
-自签证书第一次访问会有浏览器警告。要消除警告，配置自己的证书：
+自签证书第一次访问会有浏览器警告。使用 CA 证书时，把证书链和私钥放到固定位置并配置：
 
 ```yaml
 - id: remote-web-access
@@ -77,6 +77,19 @@ ln -s ~/dsh-remote-access ~/.dsh/profiles/web/node_modules/dsh-remote-access
     tlsCertFile: /etc/dsh/tls/fullchain.pem
     tlsKeyFile: /etc/dsh/tls/privkey.pem
 ```
+
+### CA 证书续期
+
+Let's Encrypt 证书默认 90 天。续期后覆盖两个文件并让插件重载（DSH 插件热加载，或重启 `dsh web`）：
+
+```bash
+# fullchain 必须包含叶证书 + 中间证书（含交叉根，如果 CA 提供）
+cp ~/下载/Certple_hugengron_cn.pem ~/.dsh/remote-access/tls/fullchain.pem
+cp ~/下载/Certple_hugengron_cn.key ~/.dsh/remote-access/tls/privkey.pem
+chmod 600 ~/.dsh/remote-access/tls/privkey.pem
+```
+
+可用 `openssl s_client -connect 127.0.0.1:8443 -servername hugengron.cn` 检查实际提供的证书。
 
 ## 配置
 
@@ -92,6 +105,7 @@ ln -s ~/dsh-remote-access ~/.dsh/profiles/web/node_modules/dsh-remote-access
 | `sessionTtlMs` | `2592000000`（30 天） | 单个已确认 cookie 有效期 |
 | `clearAllIntervalMs` | `604800000`（7 天） | 定期把全部已确认会话作废；`0` 关闭 |
 | `statePath` | `$DSH_HOME/remote-access/sessions.json` | 持久化文件路径 |
+| `publicHost` | — | 对外域名，用于设置页展示公网地址（TLS 以证书 SAN 为准） |
 
 ## 安全边界
 
