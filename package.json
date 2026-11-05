@@ -41,6 +41,6 @@
     "react": "^18.2.0"
   },
   "scripts": {
-    "test": "node lib/self-check.mjs && node lib/client-check.mjs"
+    "test": "node lib/self-check.mjs && node lib/persist-check.mjs && node lib/client-check.mjs"
   }
 }

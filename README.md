@@ -5,6 +5,8 @@ DeepSeek Harness（DSH）插件：把 DSH Web GUI 安全地开放到外网。
 - **只走 HTTPS**：插件自己开一个 TLS 监听并反向代理到本机 DSH，没有明文入口。
 - **cookie 配对**：每个外网浏览器第一次访问会拿到 `dsh_ra` cookie，但只能看到等待页。
 - **5 分钟有效期**：未确认的 cookie 5 分钟后自动失效；重新访问会得到新的配对码。
+- **持久化**：已确认会话写入 `$DSH_HOME/remote-access/sessions.json`（0600），重启 DSH 后不用重新配对。
+- **定期全部清理**：默认每 7 天把所有已确认会话一起作废，强制重新配对（可配置）。
 - **只能内网确认**：确认/拒绝操作只接受局域网或本机来源；外网（经代理）打开设置页时只有只读提示，没有确认按钮，Host 也会拒绝。
 - **设置页确认**：DSH「设置 → 外网访问」里核对配对码并确认，之后该浏览器才被转发到真正的 DSH 页面。
 
@@ -87,7 +89,9 @@ ln -s ~/dsh-remote-access ~/.dsh/profiles/web/node_modules/dsh-remote-access
 | `tlsCertFile` / `tlsKeyFile` | — | PEM 证书链与私钥；不填则自动生成自签证书 |
 | `certNames` | `[]` | 自签证书额外 SAN，例如 `["dsh.example.com"]` |
 | `pendingTtlMs` | `300000`（5 分钟） | 未确认 cookie 有效期 |
-| `sessionTtlMs` | `86400000`（24 小时） | 已确认 cookie 有效期 |
+| `sessionTtlMs` | `2592000000`（30 天） | 单个已确认 cookie 有效期 |
+| `clearAllIntervalMs` | `604800000`（7 天） | 定期把全部已确认会话作废；`0` 关闭 |
+| `statePath` | `$DSH_HOME/remote-access/sessions.json` | 持久化文件路径 |
 
 ## 安全边界
 
@@ -95,7 +99,9 @@ ln -s ~/dsh-remote-access ~/.dsh/profiles/web/node_modules/dsh-remote-access
 - 确认接口只在非代理来源、且来源地址属于回环/私有网段时可用，并要求
   `x-dsh-ra: 1` 请求头；跨站表单无法伪造。
 - 外网打开设置页时 `status.internal === false`，界面只显示提示，不渲染确认/撤销按钮。
-- 会话只存在进程内：重启 DSH 后所有已确认会话失效，需要重新配对（这是刻意的）。
+- 已确认会话持久化到 0600 文件（目录 0700）。这个文件里保存的就是 cookie 值，等同凭证；备份或拷贝它等于拷贝访问权。
+- 未确认会话不落盘：重启后仍需在 5 分钟内重新配对。
+- 定期全清从 `clearedAt` 起算，每 `clearAllIntervalMs` 把**全部**会话（包括刚确认的）一起作废。
 - `dsh_ra` cookie 是 `Secure; HttpOnly; SameSite=Lax`，只在 TLS 监听上使用。
 - 上层 DSH 的 `dsh-auth` cookie 由代理独占，不会出现在外网响应里。
 
@@ -106,10 +112,10 @@ node lib/self-check.mjs
 ```
 
 覆盖：未确认不转发、确认后转发、Host 重写与标记头、cookie 到期换新、撤销失效、
-WebSocket upgrade 的同一套规则。
+WebSocket upgrade 的同一套规则；以及持久化重启恢复、未确认会话不落盘、定期全清。
 
 ## 已知限制
 
-- 会话不持久化，DSH 重启后需要重新确认。
+- 定期全清是固定周期，不做单设备滑动续期；到期后所有外网浏览器都要重新配对。
 - 代理不处理 HTTP/2、gzip 再压缩或证书自动续期；DSH 自己的压缩原样透传。
 - 只保护经本插件端口的访问。若直接把 `dsh web` 绑定到公网地址，会绕过这套验证。
