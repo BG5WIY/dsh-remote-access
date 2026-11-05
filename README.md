@@ -60,6 +60,10 @@ ln -s ~/dsh-remote-access ~/.dsh/profiles/web/node_modules/dsh-remote-access
 [dsh-remote-access] HTTPS 0.0.0.0:8443 -> 127.0.0.1:3080 (self-signed: ~/.dsh/remote-access/tls/cert.pem)
 ```
 
+## 手机端
+
+设置面板在 ≤640px 时由插件注入的 CSS 改成全屏：顶部标题 + 横向分类标签，内容区单列滚动，「外网访问」分区变成整行列表和全宽按钮。桌面端保持 DSH 原样。样式只用 DSH 主题变量并带兜底色，跟随深浅色主题。
+
 ## 使用
 
 1. 在路由器/防火墙把公网 **TCP 8443** 放行到这台机器（端口可在配置里改）。
