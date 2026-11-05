@@ -1,0 +1,5 @@
+# dsh-remote-access bundle patch：注册 HTTPS 外网访问入口（Host）与设置页（Client）。
+# 该行 name 必须与 npm 包名、Host 入口导出的 `name` 一致。
+- insert:
+    - id: remote-web-access
+      name: 'dsh-remote-access'

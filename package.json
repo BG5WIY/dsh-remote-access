@@ -1,0 +1,46 @@
+{
+  "name": "dsh-remote-access",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness 插件：带配对验证的 HTTPS 外网访问入口，只能在内网/本机的设置页确认待验证 cookie。",
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "cordis",
+    "plugin",
+    "remote",
+    "https",
+    "cookie"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "react": "^18.2.0"
+  },
+  "scripts": {
+    "test": "node lib/self-check.mjs && node lib/client-check.mjs"
+  }
+}
